@@ -2,6 +2,7 @@ import React from 'react';
 import { useAuth } from '../contexts/AuthContext';
 import { MailCheck, Sparkles, ShieldCheck, Zap, ArrowRight } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
+import api from '../services/api';
 
 export default function Login() {
   const { loginWithDemo } = useAuth();
@@ -11,6 +12,19 @@ export default function Login() {
     const success = await loginWithDemo();
     if (success) {
       navigate('/dashboard');
+    }
+  };
+
+  const handleGoogleClick = async (e) => {
+    e.preventDefault();
+    try {
+      const res = await api.get('/auth/google');
+      if (res.data?.url) {
+        window.location.href = res.data.url;
+      }
+    } catch (err) {
+      console.error('Google login error:', err);
+      window.location.href = '/api/auth/google?redirect=true';
     }
   };
 
@@ -43,8 +57,8 @@ export default function Login() {
             <ArrowRight className="w-4 h-4" />
           </button>
 
-          <a
-            href="/api/auth/google"
+          <button
+            onClick={handleGoogleClick}
             className="w-full flex items-center justify-center space-x-3 py-3.5 px-4 rounded-xl bg-slate-800 hover:bg-slate-700 text-slate-200 font-semibold text-sm border border-slate-700 transition-colors"
           >
             <svg className="w-4 h-4" viewBox="0 0 24 24">
@@ -66,7 +80,7 @@ export default function Login() {
               />
             </svg>
             <span>Sign in with Google OAuth</span>
-          </a>
+          </button>
         </div>
 
         {/* Feature Highlights */}

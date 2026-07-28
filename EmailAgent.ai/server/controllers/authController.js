@@ -7,9 +7,16 @@ import { DEMO_USER } from '../middleware/authMiddleware.js';
 export async function getGoogleAuthUrl(req, res) {
   try {
     if (config.isDemoMode) {
-      return res.json({ success: true, url: '/login?demo=true' });
+      const url = `${config.clientUrl}/login?demo=true`;
+      if (req.headers.accept?.includes('text/html') || req.query.redirect === 'true') {
+        return res.redirect(url);
+      }
+      return res.json({ success: true, url });
     }
     const url = GmailService.getAuthUrl();
+    if (req.headers.accept?.includes('text/html') || req.query.redirect === 'true') {
+      return res.redirect(url);
+    }
     res.json({ success: true, url });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
