@@ -72,33 +72,46 @@ export async function analyzeEmailWithGemini(email) {
     };
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
-    const model = genAI.getGenerativeModel({ model: config.gemini.model || 'gemini-1.5-flash' });
-    const prompt = PromptBuilder.buildAnalysisPrompt(email);
+  const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+  const prompt = PromptBuilder.buildAnalysisPrompt(email);
+  const modelCandidates = [
+    config.gemini.model,
+    'gemini-1.5-flash-latest',
+    'gemini-2.5-flash',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+  ].filter((m, i, self) => m && self.indexOf(m) === i);
 
-    const response = await model.generateContent(prompt);
-    const rawText = response.response.text();
-    const parsed = ResponseParser.parseAndCleanJSON(rawText);
-    const validated = ResponseParser.validateAnalysisSchema(parsed);
+  let lastError = null;
+  for (const modelName of modelCandidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const response = await model.generateContent(prompt);
+      const rawText = response.response.text();
+      const parsed = ResponseParser.parseAndCleanJSON(rawText);
+      const validated = ResponseParser.validateAnalysisSchema(parsed);
 
-    const processingTime = Date.now() - startTime;
-    const tokensUsed = 450;
-    const estimatedCost = (tokensUsed / 1000) * 0.0003;
+      const processingTime = Date.now() - startTime;
+      const tokensUsed = 450;
+      const estimatedCost = (tokensUsed / 1000) * 0.0003;
 
-    return {
-      ...validated,
-      emailId: email._id,
-      tokensUsed,
-      processingTime,
-      estimatedCost: parseFloat(estimatedCost.toFixed(6)),
-    };
-  } catch (error) {
-    console.error('[AnalyzeEmail] Gemini API call failed:', error.message);
-    return {
-      ...generateDynamicFallback(email),
-      emailId: email._id,
-      processingTime: Date.now() - startTime,
-    };
+      return {
+        ...validated,
+        emailId: email._id,
+        tokensUsed,
+        processingTime,
+        estimatedCost: parseFloat(estimatedCost.toFixed(6)),
+      };
+    } catch (error) {
+      lastError = error;
+      console.warn(`[AnalyzeEmail] Model ${modelName} attempt failed (${error.message}). Trying next candidate...`);
+    }
   }
+
+  console.error('[AnalyzeEmail] All Gemini models failed:', lastError?.message);
+  return {
+    ...generateDynamicFallback(email),
+    emailId: email._id,
+    processingTime: Date.now() - startTime,
+  };
 }

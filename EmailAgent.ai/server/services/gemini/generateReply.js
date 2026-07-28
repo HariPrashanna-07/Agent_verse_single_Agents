@@ -23,25 +23,35 @@ export async function generateCustomReplyWithGemini(email, tone = 'professional'
     };
   }
 
-  try {
-    const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
-    const model = genAI.getGenerativeModel({ model: config.gemini.model || 'gemini-1.5-flash' });
-    const prompt = PromptBuilder.buildReplyPrompt(email, tone, customInstructions);
+  const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
+  const prompt = PromptBuilder.buildReplyPrompt(email, tone, customInstructions);
+  const modelCandidates = [
+    config.gemini.model,
+    'gemini-1.5-flash-latest',
+    'gemini-2.5-flash',
+    'gemini-1.5-pro-latest',
+    'gemini-1.5-pro',
+  ].filter((m, i, self) => m && self.indexOf(m) === i);
 
-    const response = await model.generateContent(prompt);
-    const parsed = ResponseParser.parseAndCleanJSON(response.response.text());
+  for (const modelName of modelCandidates) {
+    try {
+      const model = genAI.getGenerativeModel({ model: modelName });
+      const response = await model.generateContent(prompt);
+      const parsed = ResponseParser.parseAndCleanJSON(response.response.text());
 
-    return {
-      replyDraft: parsed.replyDraft || toneResponses[tone] || toneResponses.professional,
-      tone,
-      customInstructions,
-    };
-  } catch (error) {
-    console.error('[GenerateReply] Error generating reply:', error.message);
-    return {
-      replyDraft: toneResponses[tone] || toneResponses.professional,
-      tone,
-      customInstructions,
-    };
+      return {
+        replyDraft: parsed.replyDraft || toneResponses[tone] || toneResponses.professional,
+        tone,
+        customInstructions,
+      };
+    } catch (error) {
+      console.warn(`[GenerateReply] Model ${modelName} failed (${error.message}). Trying next candidate...`);
+    }
   }
+
+  return {
+    replyDraft: toneResponses[tone] || toneResponses.professional,
+    tone,
+    customInstructions,
+  };
 }
