@@ -11,6 +11,16 @@ export function AuthProvider({ children }) {
   const fetchUser = async () => {
     try {
       setLoading(true);
+
+      // Check if URL has ?token= query parameter from Google OAuth callback redirect
+      const urlParams = new URLSearchParams(window.location.search);
+      const urlToken = urlParams.get('token');
+      if (urlToken) {
+        localStorage.setItem('token', urlToken);
+        // Remove token from query string cleanly
+        window.history.replaceState({}, document.title, window.location.pathname);
+      }
+
       const res = await api.get('/auth/me');
       if (res.data.success) {
         setUser(res.data.user);
@@ -47,6 +57,7 @@ export function AuthProvider({ children }) {
     try {
       await api.post('/auth/logout');
     } catch (e) {}
+    localStorage.removeItem('token');
     setUser(null);
   };
 

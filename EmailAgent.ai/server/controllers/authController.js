@@ -1,3 +1,4 @@
+import { google } from 'googleapis';
 import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 import { User } from '../models/User.js';
@@ -31,8 +32,46 @@ export async function googleCallback(req, res) {
     }
 
     const tokens = await GmailService.getTokensFromCode(code);
-    // In live mode, decode Google token or fetch profile
-    const token = jwt.sign({ id: 'live-user-id' }, config.jwtSecret, { expiresIn: '7d' });
+    const oauth2Client = GmailService.getOAuthClient();
+    oauth2Client.setCredentials(tokens);
+
+    const oauth2 = google.oauth2({ version: 'v2', auth: oauth2Client });
+    const { data: profile } = await oauth2.userinfo.get();
+
+    let user;
+    try {
+      user = await User.findOne({ googleId: profile.id });
+      if (!user) {
+        user = await User.create({
+          googleId: profile.id,
+          name: profile.name || 'Gmail User',
+          email: profile.email,
+          avatar: profile.picture || '',
+          refreshToken: tokens.refresh_token,
+          accessToken: tokens.access_token,
+          tokenExpiry: tokens.expiry_date ? new Date(tokens.expiry_date) : new Date(Date.now() + 3600 * 1000),
+        });
+      } else {
+        user.accessToken = tokens.access_token;
+        if (tokens.refresh_token) user.refreshToken = tokens.refresh_token;
+        if (tokens.expiry_date) user.tokenExpiry = new Date(tokens.expiry_date);
+        await user.save();
+      }
+    } catch (dbErr) {
+      console.warn('[GoogleCallback] DB warning, using live user object:', dbErr.message);
+      user = {
+        _id: '666666666666666666666666',
+        googleId: profile.id,
+        name: profile.name || 'Gmail User',
+        email: profile.email,
+        avatar: profile.picture || '',
+        accessToken: tokens.access_token,
+        refreshToken: tokens.refresh_token,
+      };
+    }
+
+    const userIdStr = user._id ? user._id.toString() : '666666666666666666666666';
+    const token = jwt.sign({ id: userIdStr }, config.jwtSecret, { expiresIn: '7d' });
 
     res.cookie('token', token, {
       httpOnly: true,
@@ -40,8 +79,9 @@ export async function googleCallback(req, res) {
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
-    res.redirect(`${config.clientUrl}/dashboard`);
+    res.redirect(`${config.clientUrl}/dashboard?token=${token}`);
   } catch (error) {
+    console.error('[GoogleCallback] OAuth login error:', error.message);
     res.redirect(`${config.clientUrl}/login?error=oauth_failed`);
   }
 }
