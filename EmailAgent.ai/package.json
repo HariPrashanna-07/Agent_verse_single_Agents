@@ -1,0 +1,23 @@
+{
+  "name": "ai-email-intelligence-agent",
+  "version": "1.0.0",
+  "description": "Production-quality AI Email Intelligence Agent powered by Google Gemini and Gmail API",
+  "main": "server/index.js",
+  "scripts": {
+    "dev:server": "cd server && npm run dev",
+    "dev:client": "cd client && npm run dev",
+    "build": "cd client && npm run build",
+    "start": "cd server && npm start"
+  },
+  "keywords": [
+    "gmail",
+    "gemini",
+    "ai",
+    "email-agent",
+    "express",
+    "react",
+    "tailwindcss"
+  ],
+  "author": "Antigravity AI",
+  "license": "MIT"
+}
