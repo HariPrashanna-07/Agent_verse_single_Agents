@@ -28,12 +28,9 @@ export async function generateCustomReplyWithGemini(email, tone = 'professional'
   const modelCandidates = [
     config.gemini.model,
     'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
-    'gemini-1.5-flash-002',
-    'gemini-1.5-flash-001',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro-002',
-    'gemini-1.5-pro-001',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-lite-preview-02-05',
+    'gemini-1.5-flash',
   ].filter((m, i, self) => m && self.indexOf(m) === i);
 
   for (const modelName of modelCandidates) {
@@ -48,7 +45,10 @@ export async function generateCustomReplyWithGemini(email, tone = 'professional'
         customInstructions,
       };
     } catch (error) {
-      console.warn(`[GenerateReply] Model "${modelName}" failed (${error.message}). Trying next candidate...`);
+      if (error.message.includes('429') || error.message.includes('Quota exceeded') || error.message.includes('rate-limits')) {
+        console.warn(`[GenerateReply] Gemini API Quota Exceeded (429) on "${modelName}". Serving dynamic reply draft.`);
+        break;
+      }
     }
   }
 

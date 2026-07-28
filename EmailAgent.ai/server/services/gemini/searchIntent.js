@@ -30,12 +30,9 @@ export async function parseSearchIntentWithGemini(userQuery) {
   const modelCandidates = [
     config.gemini.model,
     'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
-    'gemini-1.5-flash-002',
-    'gemini-1.5-flash-001',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro-002',
-    'gemini-1.5-pro-001',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-lite-preview-02-05',
+    'gemini-1.5-flash',
   ].filter((m, i, self) => m && self.indexOf(m) === i);
 
   for (const modelName of modelCandidates) {
@@ -44,7 +41,10 @@ export async function parseSearchIntentWithGemini(userQuery) {
       const response = await model.generateContent(prompt);
       return ResponseParser.parseAndCleanJSON(response.response.text());
     } catch (error) {
-      console.warn(`[SearchIntent] Model "${modelName}" failed (${error.message}). Trying next candidate...`);
+      if (error.message.includes('429') || error.message.includes('Quota exceeded') || error.message.includes('rate-limits')) {
+        console.warn(`[SearchIntent] Gemini API Quota Exceeded (429) on "${modelName}". Serving fallback intent.`);
+        break;
+      }
     }
   }
 

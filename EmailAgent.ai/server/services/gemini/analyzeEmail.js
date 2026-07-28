@@ -64,7 +64,7 @@ export async function analyzeEmailWithGemini(email) {
   const startTime = Date.now();
 
   if (!config.gemini.apiKey) {
-    console.warn('[AnalyzeEmail] GEMINI_API_KEY is not set in server/.env. Using dynamic fallback based on real email content.');
+    console.warn('[AnalyzeEmail] GEMINI_API_KEY is not set in server/.env. Using dynamic fallback.');
     return {
       ...generateDynamicFallback(email),
       emailId: email._id,
@@ -77,15 +77,11 @@ export async function analyzeEmailWithGemini(email) {
   const modelCandidates = [
     config.gemini.model,
     'gemini-2.0-flash',
-    'gemini-2.0-flash-exp',
-    'gemini-1.5-flash-002',
-    'gemini-1.5-flash-001',
-    'gemini-1.5-flash-8b',
-    'gemini-1.5-pro-002',
-    'gemini-1.5-pro-001',
+    'gemini-2.0-flash-lite',
+    'gemini-2.0-flash-lite-preview-02-05',
+    'gemini-1.5-flash',
   ].filter((m, i, self) => m && self.indexOf(m) === i);
 
-  let lastError = null;
   for (const modelName of modelCandidates) {
     try {
       const model = genAI.getGenerativeModel({ model: modelName });
@@ -106,12 +102,13 @@ export async function analyzeEmailWithGemini(email) {
         estimatedCost: parseFloat(estimatedCost.toFixed(6)),
       };
     } catch (error) {
-      lastError = error;
-      console.warn(`[AnalyzeEmail] Model "${modelName}" attempt failed (${error.message}). Trying next candidate...`);
+      if (error.message.includes('429') || error.message.includes('Quota exceeded') || error.message.includes('rate-limits')) {
+        console.warn(`[AnalyzeEmail] Gemini API Quota Exceeded (429) on "${modelName}". Serving dynamic email analysis.`);
+        break;
+      }
     }
   }
 
-  console.error('[AnalyzeEmail] All Gemini models failed:', lastError?.message);
   return {
     ...generateDynamicFallback(email),
     emailId: email._id,
