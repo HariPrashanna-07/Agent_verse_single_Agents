@@ -18,13 +18,42 @@ export async function getEmails(req, res) {
       emails = MOCK_EMAILS;
     }
 
+    const analyses = await AIAnalysis.find({ userId: req.user._id });
+    const analysisMap = new Map();
+    analyses.forEach((a) => {
+      if (a.emailId) analysisMap.set(a.emailId.toString(), a);
+    });
+
+    let emailsWithAnalysis = emails.map((e) => {
+      const obj = e.toObject ? e.toObject() : e;
+      const analysis = analysisMap.get(obj._id.toString()) || MOCK_ANALYSES[obj._id] || null;
+      const isAnalyzed = !!analysis || obj.aiStatus === 'ANALYZED';
+
+      return {
+        ...obj,
+        aiStatus: isAnalyzed ? 'ANALYZED' : (obj.aiStatus || 'NOT_ANALYZED'),
+        analysis: analysis ? {
+          category: analysis.category,
+          urgency: analysis.urgency,
+          sentiment: analysis.sentiment,
+          summaryShort: analysis.summary?.short,
+        } : null,
+      };
+    });
+
     // Apply Client/Query filters
-    if (status) {
-      emails = emails.filter((e) => e.aiStatus === status);
+    if (status && status !== 'All') {
+      emailsWithAnalysis = emailsWithAnalysis.filter((e) => e.aiStatus === status);
+    }
+    if (category && category !== 'All') {
+      emailsWithAnalysis = emailsWithAnalysis.filter((e) => e.analysis?.category === category);
+    }
+    if (urgency && urgency !== 'All') {
+      emailsWithAnalysis = emailsWithAnalysis.filter((e) => e.analysis?.urgency === urgency);
     }
     if (search) {
       const q = search.toLowerCase();
-      emails = emails.filter(
+      emailsWithAnalysis = emailsWithAnalysis.filter(
         (e) =>
           e.subject.toLowerCase().includes(q) ||
           e.sender.name.toLowerCase().includes(q) ||
@@ -35,9 +64,9 @@ export async function getEmails(req, res) {
 
     res.json({
       success: true,
-      count: emails.length,
+      count: emailsWithAnalysis.length,
       page: Number(page),
-      emails,
+      emails: emailsWithAnalysis,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

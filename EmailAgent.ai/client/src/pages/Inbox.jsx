@@ -3,24 +3,28 @@ import api from '../services/api';
 import { UrgencyBadge } from '../components/common/UrgencyBadge';
 import { CategoryBadge } from '../components/common/CategoryBadge';
 import { LoadingSkeleton } from '../components/common/LoadingSkeleton';
-import { Sparkles, Paperclip, Filter, Search, CheckSquare, RefreshCw, Play } from 'lucide-react';
+import { Sparkles, Paperclip, Filter, Search, CheckSquare, RefreshCw, Play, CheckCircle2, Circle } from 'lucide-react';
 import { Link } from 'react-router-dom';
 
 export default function Inbox() {
   const [emails, setEmails] = useState([]);
   const [loading, setLoading] = useState(true);
   const [selectedCategory, setSelectedCategory] = useState('All');
-  const [selectedUrgency, setSelectedUrgency] = useState('All');
+  const [selectedStatus, setSelectedStatus] = useState('All');
   const [selectedEmails, setSelectedEmails] = useState([]);
   const [queueProgress, setQueueProgress] = useState(null);
 
   const categories = ['All', 'Work', 'Finance', 'Education', 'Personal', 'Promotions', 'Social'];
-  const urgencies = ['All', 'Urgent', 'Medium', 'Low'];
+  const statuses = [
+    { id: 'All', label: 'All Status' },
+    { id: 'ANALYZED', label: '✨ Analyzed' },
+    { id: 'NOT_ANALYZED', label: 'Pending Analysis' },
+  ];
 
   const fetchInbox = async () => {
     try {
       setLoading(true);
-      const res = await api.get(`/emails?category=${selectedCategory}&urgency=${selectedUrgency}`);
+      const res = await api.get(`/emails?category=${selectedCategory}&status=${selectedStatus}`);
       if (res.data.success) {
         setEmails(res.data.emails);
       }
@@ -33,7 +37,7 @@ export default function Inbox() {
 
   useEffect(() => {
     fetchInbox();
-  }, [selectedCategory, selectedUrgency]);
+  }, [selectedCategory, selectedStatus]);
 
   const toggleSelect = (id) => {
     setSelectedEmails((prev) => (prev.includes(id) ? prev.filter((item) => item !== id) : [...prev, id]));
@@ -73,23 +77,42 @@ export default function Inbox() {
     <div className="space-y-6">
       {/* Top Controls & Filters */}
       <div className="flex flex-col md:flex-row md:items-center justify-between gap-4 glass-panel p-4 rounded-2xl">
-        <div className="flex flex-wrap items-center gap-2">
-          <span className="text-xs font-bold text-slate-500 dark:text-slate-400 mr-2 flex items-center">
-            <Filter className="w-3.5 h-3.5 mr-1" /> Category:
-          </span>
-          {categories.map((cat) => (
-            <button
-              key={cat}
-              onClick={() => setSelectedCategory(cat)}
-              className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
-                selectedCategory === cat
-                  ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
-                  : 'bg-slate-100 dark:bg-slate-800 text-slate-600 dark:text-slate-400 hover:bg-slate-200 dark:hover:bg-slate-700'
-              }`}
-            >
-              {cat}
-            </button>
-          ))}
+        <div className="flex flex-wrap items-center gap-3">
+          <div className="flex items-center space-x-1.5 border-r border-slate-700/50 pr-3">
+            <span className="text-xs font-bold text-slate-400 flex items-center mr-1">
+              <Filter className="w-3.5 h-3.5 mr-1 text-indigo-400" /> Category:
+            </span>
+            {categories.map((cat) => (
+              <button
+                key={cat}
+                onClick={() => setSelectedCategory(cat)}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+                  selectedCategory === cat
+                    ? 'bg-indigo-600 text-white shadow-md shadow-indigo-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:bg-slate-700 hover:text-white'
+                }`}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
+
+          <div className="flex items-center space-x-1.5">
+            <span className="text-xs font-bold text-slate-400 mr-1">AI Status:</span>
+            {statuses.map((st) => (
+              <button
+                key={st.id}
+                onClick={() => setSelectedStatus(st.id)}
+                className={`px-3 py-1 rounded-xl text-xs font-semibold transition-all ${
+                  selectedStatus === st.id
+                    ? 'bg-purple-600 text-white shadow-md shadow-purple-500/20'
+                    : 'bg-slate-800/40 text-slate-400 hover:bg-slate-700 hover:text-white'
+                }`}
+              >
+                {st.label}
+              </button>
+            ))}
+          </div>
         </div>
 
         <div className="flex items-center space-x-3">
@@ -133,54 +156,70 @@ export default function Inbox() {
           <p className="text-xs text-slate-400">Try selecting a different category or clearing filters.</p>
         </div>
       ) : (
-        <div className="glass-card rounded-3xl overflow-hidden divide-y divide-slate-200 dark:divide-slate-800">
-          {emails.map((email) => (
-            <div
-              key={email._id}
-              className={`p-4 md:p-5 flex items-center justify-between hover:bg-slate-50/50 dark:hover:bg-slate-800/40 transition-colors group ${
-                !email.isRead ? 'bg-indigo-500/[0.02] font-semibold' : ''
-              }`}
-            >
-              <div className="flex items-center space-x-4 min-w-0 flex-1 pr-4">
-                <input
-                  type="checkbox"
-                  checked={selectedEmails.includes(email._id)}
-                  onChange={() => toggleSelect(email._id)}
-                  className="rounded border-slate-300 dark:border-slate-700 text-indigo-600 focus:ring-indigo-500"
-                />
+        <div className="glass-card rounded-3xl overflow-hidden divide-y divide-slate-800">
+          {emails.map((email) => {
+            const isAnalyzed = email.aiStatus === 'ANALYZED' || !!email.analysis;
 
-                <div className="min-w-0 flex-1 space-y-1">
-                  <div className="flex items-center space-x-2">
-                    <span className="text-xs font-bold text-slate-900 dark:text-white truncate">{email.sender?.name || email.sender?.email}</span>
-                    {email.analysis?.category && <CategoryBadge category={email.analysis.category} />}
-                    {email.analysis?.urgency && <UrgencyBadge urgency={email.analysis.urgency} />}
-                    {email.hasAttachments && <Paperclip className="w-3.5 h-3.5 text-slate-400" />}
+            return (
+              <div
+                key={email._id}
+                className={`p-4 md:p-5 flex items-center justify-between hover:bg-slate-800/40 transition-colors group ${
+                  !email.isRead ? 'bg-indigo-500/[0.03] font-semibold' : ''
+                }`}
+              >
+                <div className="flex items-center space-x-4 min-w-0 flex-1 pr-4">
+                  <input
+                    type="checkbox"
+                    checked={selectedEmails.includes(email._id)}
+                    onChange={() => toggleSelect(email._id)}
+                    className="rounded border-slate-700 bg-slate-800 text-indigo-600 focus:ring-indigo-500"
+                  />
+
+                  <div className="min-w-0 flex-1 space-y-1.5">
+                    <div className="flex items-center space-x-2 flex-wrap gap-y-1">
+                      <span className="text-xs font-bold text-slate-200 truncate">{email.sender?.name || email.sender?.email}</span>
+
+                      {/* AI Status Badge */}
+                      {isAnalyzed ? (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-extrabold bg-indigo-500/15 text-indigo-300 border border-indigo-500/40 shadow-sm shadow-indigo-500/10">
+                          <Sparkles className="w-3 h-3 mr-1 text-amber-300" /> Analyzed
+                        </span>
+                      ) : (
+                        <span className="inline-flex items-center px-2 py-0.5 rounded-lg text-[10px] font-medium bg-slate-800/80 text-slate-400 border border-slate-700/60">
+                          <Circle className="w-2.5 h-2.5 mr-1 text-slate-500" /> Pending Analysis
+                        </span>
+                      )}
+
+                      {email.analysis?.category && <CategoryBadge category={email.analysis.category} />}
+                      {email.analysis?.urgency && <UrgencyBadge urgency={email.analysis.urgency} />}
+                      {email.hasAttachments && <Paperclip className="w-3.5 h-3.5 text-slate-400" />}
+                    </div>
+
+                    <Link to={`/emails/${email._id}`} className="block">
+                      <h4 className="text-sm font-semibold text-slate-200 group-hover:text-indigo-400 transition-colors truncate">
+                        {email.subject}
+                      </h4>
+                      <p className="text-xs text-slate-400 line-clamp-1">
+                        {email.analysis?.summaryShort || email.snippet || email.bodyPreview}
+                      </p>
+                    </Link>
                   </div>
+                </div>
 
-                  <Link to={`/emails/${email._id}`} className="block">
-                    <h4 className="text-sm font-semibold text-slate-800 dark:text-slate-200 group-hover:text-indigo-500 transition-colors truncate">
-                      {email.subject}
-                    </h4>
-                    <p className="text-xs text-slate-500 dark:text-slate-400 line-clamp-1">
-                      {email.analysis?.summaryShort || email.snippet || email.bodyPreview}
-                    </p>
+                <div className="flex items-center space-x-3">
+                  <span className="text-[11px] text-slate-500 whitespace-nowrap hidden sm:inline">
+                    {new Date(email.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+                  </span>
+                  <Link
+                    to={`/emails/${email._id}`}
+                    className="px-3.5 py-1.5 rounded-xl bg-slate-800 hover:bg-indigo-600 text-slate-200 hover:text-white text-xs font-bold transition-all shadow-sm"
+                  >
+                    View Details
                   </Link>
                 </div>
               </div>
-
-              <div className="flex items-center space-x-3">
-                <span className="text-[11px] text-slate-400 whitespace-nowrap hidden sm:inline">
-                  {new Date(email.date).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-                </span>
-                <Link
-                  to={`/emails/${email._id}`}
-                  className="px-3 py-1.5 rounded-xl bg-slate-100 dark:bg-slate-800 hover:bg-indigo-600 hover:text-white text-xs font-bold transition-all"
-                >
-                  View Details
-                </Link>
-              </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       )}
     </div>
