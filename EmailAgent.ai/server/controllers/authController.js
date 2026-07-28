@@ -3,6 +3,7 @@ import jwt from 'jsonwebtoken';
 import { config } from '../config/env.js';
 import { User } from '../models/User.js';
 import { GmailService } from '../services/gmail/gmailService.js';
+import { SyncService } from '../services/sync/syncService.js';
 import { DEMO_USER } from '../middleware/authMiddleware.js';
 
 export async function getGoogleAuthUrl(req, res) {
@@ -68,6 +69,13 @@ export async function googleCallback(req, res) {
         accessToken: tokens.access_token,
         refreshToken: tokens.refresh_token,
       };
+    }
+
+    // Trigger Gmail Inbox Sync in background
+    if (!config.isDemoMode) {
+      SyncService.syncUserInbox(user).catch((err) =>
+        console.error('[GoogleCallback] Auto-sync error:', err.message)
+      );
     }
 
     const userIdStr = user._id ? user._id.toString() : '666666666666666666666666';

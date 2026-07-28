@@ -17,5 +17,5 @@ export const config = {
     model: process.env.GEMINI_MODEL || 'gemini-1.5-flash',
   },
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
-  isDemoMode: process.env.DEMO_MODE === 'true' || !process.env.GOOGLE_CLIENT_ID || !process.env.GEMINI_API_KEY,
+  isDemoMode: process.env.DEMO_MODE === 'true',
 };

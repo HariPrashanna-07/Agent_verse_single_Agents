@@ -1,3 +1,4 @@
+import { config } from '../config/env.js';
 import { Email } from '../models/Email.js';
 import { AIAnalysis } from '../models/AIAnalysis.js';
 import { MOCK_EMAILS, MOCK_ANALYSES } from '../utils/demoData.js';
@@ -12,7 +13,7 @@ export async function getEmails(req, res) {
 
     let emails = await Email.find({ userId: req.user._id }).sort({ date: -1 });
 
-    if (emails.length === 0) {
+    if (emails.length === 0 && config.isDemoMode) {
       emails = MOCK_EMAILS;
     }
 
