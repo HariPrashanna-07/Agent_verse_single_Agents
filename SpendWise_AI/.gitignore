@@ -1,0 +1,19 @@
+# Environment variables / API keys
+.env
+backend/.env
+
+# Python
+__pycache__/
+*.pyc
+.venv/
+venv/
+
+# Database
+*.db
+
+# Node
+node_modules/
+frontend/node_modules/
+
+# Build
+dist/

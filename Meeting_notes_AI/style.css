@@ -1,0 +1,70 @@
+/* Main Container & Dark Theme Tweaks */
+.stApp {
+    background-color: #0E1117;
+    color: #FAFAFA;
+    font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+}
+
+/* Custom Card Layout */
+.metric-card {
+    background: #1E232A;
+    border: 1px solid #2D343F;
+    border-radius: 10px;
+    padding: 18px;
+    margin-bottom: 15px;
+    box-shadow: 0 4px 6px rgba(0, 0, 0, 0.3);
+    transition: transform 0.2s ease, border-color 0.2s ease;
+}
+
+.metric-card:hover {
+    transform: translateY(-2px);
+    border-color: #4F46E5;
+}
+
+.card-header {
+    font-size: 0.85rem;
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+    color: #9CA3AF;
+    margin-bottom: 6px;
+    font-weight: 600;
+}
+
+.card-value {
+    font-size: 1.8rem;
+    font-weight: 700;
+    color: #F3F4F6;
+}
+
+/* Section Header Styling */
+.section-header {
+    font-size: 1.3rem;
+    font-weight: 600;
+    color: #818CF8;
+    margin-top: 1.5rem;
+    margin-bottom: 0.8rem;
+    border-bottom: 1px solid #2D343F;
+    padding-bottom: 0.4rem;
+}
+
+/* Custom Alert / Info Banners */
+.info-box {
+    background-color: #1E293B;
+    border-left: 4px solid #3B82F6;
+    padding: 12px 16px;
+    border-radius: 0 8px 8px 0;
+    margin: 10px 0;
+}
+
+/* Sidebar Branding */
+.sidebar-branding {
+    text-align: center;
+    padding: 10px 0 20px 0;
+}
+
+.sidebar-title {
+    font-size: 1.2rem;
+    font-weight: 700;
+    color: #F3F4F6;
+    margin-top: 8px;
+}
