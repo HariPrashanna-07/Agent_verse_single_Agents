@@ -23,8 +23,8 @@ export class StatisticsService {
       const urgentEmails = analyses.filter((a) => a.urgency === 'Urgent').length;
       const totalTasks = analyses.reduce((acc, a) => acc + (a.tasks?.length || 0), 0);
       const totalDeadlines = analyses.reduce((acc, a) => acc + (a.deadlines?.length || 0), 0);
-      const totalTokens = analyses.reduce((acc, a) => acc + (a.tokensUsed || 0), 1250);
-      const totalCost = analyses.reduce((acc, a) => acc + (a.estimatedCost || 0), 0.00032);
+      const totalTokens = analyses.reduce((acc, a) => acc + (a.tokensUsed || 0), 0);
+      const totalCost = analyses.reduce((acc, a) => acc + (a.estimatedCost || 0), 0);
 
       // Category breakdown distribution
       const categoryCounts = {};
@@ -61,15 +61,15 @@ export class StatisticsService {
       return {
         totalEmails,
         unreadEmails,
-        urgentEmails: urgentEmails || 1,
-        analyzedCount: analyzedCount || 3,
+        urgentEmails,
+        analyzedCount,
         pendingAnalysisCount,
-        tasksFound: totalTasks || 4,
-        deadlinesThisWeek: totalDeadlines || 2,
+        tasksFound: totalTasks,
+        deadlinesThisWeek: totalDeadlines,
         totalTokens,
         estimatedCost: parseFloat(totalCost.toFixed(5)),
         inboxHealthScore,
-        categoriesChart: categoriesChart.length ? categoriesChart : [{ name: 'Work', value: 2 }, { name: 'Finance', value: 1 }],
+        categoriesChart: categoriesChart.length ? categoriesChart : [{ name: 'Inbox', value: totalEmails || 1 }],
         sentimentChart,
         syncState,
       };

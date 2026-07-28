@@ -60,6 +60,12 @@ export async function getEmailById(req, res) {
       return res.status(404).json({ success: false, message: 'Email not found' });
     }
 
+    // Automatically mark email as read in MongoDB when viewed
+    if (!email.isRead && mongoose.Types.ObjectId.isValid(email._id)) {
+      await Email.findByIdAndUpdate(email._id, { isRead: true });
+      email.isRead = true;
+    }
+
     let analyses = [];
     if (mongoose.Types.ObjectId.isValid(email._id)) {
       analyses = await AIAnalysis.find({ emailId: email._id, userId: req.user._id }).sort({ createdAt: -1 });
