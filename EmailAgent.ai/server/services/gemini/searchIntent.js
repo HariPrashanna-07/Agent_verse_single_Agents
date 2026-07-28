@@ -29,10 +29,13 @@ export async function parseSearchIntentWithGemini(userQuery) {
   const prompt = PromptBuilder.buildSearchIntentPrompt(userQuery);
   const modelCandidates = [
     config.gemini.model,
-    'gemini-1.5-flash-latest',
-    'gemini-2.5-flash',
-    'gemini-1.5-pro-latest',
-    'gemini-1.5-pro',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-flash-002',
+    'gemini-1.5-flash-001',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro-002',
+    'gemini-1.5-pro-001',
   ].filter((m, i, self) => m && self.indexOf(m) === i);
 
   for (const modelName of modelCandidates) {
@@ -41,7 +44,7 @@ export async function parseSearchIntentWithGemini(userQuery) {
       const response = await model.generateContent(prompt);
       return ResponseParser.parseAndCleanJSON(response.response.text());
     } catch (error) {
-      console.warn(`[SearchIntent] Model ${modelName} failed (${error.message}). Trying next candidate...`);
+      console.warn(`[SearchIntent] Model "${modelName}" failed (${error.message}). Trying next candidate...`);
     }
   }
 

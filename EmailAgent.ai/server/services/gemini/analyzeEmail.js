@@ -76,10 +76,13 @@ export async function analyzeEmailWithGemini(email) {
   const prompt = PromptBuilder.buildAnalysisPrompt(email);
   const modelCandidates = [
     config.gemini.model,
-    'gemini-1.5-flash-latest',
-    'gemini-2.5-flash',
-    'gemini-1.5-pro-latest',
-    'gemini-1.5-pro',
+    'gemini-2.0-flash',
+    'gemini-2.0-flash-exp',
+    'gemini-1.5-flash-002',
+    'gemini-1.5-flash-001',
+    'gemini-1.5-flash-8b',
+    'gemini-1.5-pro-002',
+    'gemini-1.5-pro-001',
   ].filter((m, i, self) => m && self.indexOf(m) === i);
 
   let lastError = null;
@@ -104,7 +107,7 @@ export async function analyzeEmailWithGemini(email) {
       };
     } catch (error) {
       lastError = error;
-      console.warn(`[AnalyzeEmail] Model ${modelName} attempt failed (${error.message}). Trying next candidate...`);
+      console.warn(`[AnalyzeEmail] Model "${modelName}" attempt failed (${error.message}). Trying next candidate...`);
     }
   }
 

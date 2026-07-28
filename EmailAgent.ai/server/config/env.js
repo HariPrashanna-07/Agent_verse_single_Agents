@@ -14,7 +14,7 @@ export const config = {
   },
   gemini: {
     apiKey: process.env.GEMINI_API_KEY || '',
-    model: process.env.GEMINI_MODEL || 'gemini-1.5-flash-latest',
+    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
   },
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   isDemoMode: process.env.DEMO_MODE === 'true',
