@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { generateCustomReplyWithGemini } from '../services/gemini/generateReply.js';
 import { Email } from '../models/Email.js';
 import { AIAnalysis } from '../models/AIAnalysis.js';
@@ -7,9 +8,19 @@ export async function generateReplyDraft(req, res) {
   try {
     const { emailId, tone = 'professional', customInstructions = '' } = req.body;
 
-    let email = await Email.findById(emailId);
+    let email = null;
+    if (emailId && mongoose.Types.ObjectId.isValid(emailId)) {
+      email = await Email.findById(emailId);
+    }
+
     if (!email) {
-      email = MOCK_EMAILS.find((e) => e._id === emailId) || MOCK_EMAILS[0];
+      email = MOCK_EMAILS.find((e) => e._id === emailId || e.gmailMessageId === emailId) || {
+        _id: emailId || 'email_default',
+        subject: 'General Request',
+        sender: { name: 'Recipient', email: 'recipient@example.com' },
+        snippet: customInstructions || 'General message',
+        body: customInstructions || 'General message content',
+      };
     }
 
     const reply = await generateCustomReplyWithGemini(email, tone, customInstructions);
@@ -20,6 +31,7 @@ export async function generateReplyDraft(req, res) {
       ...reply,
     });
   } catch (error) {
+    console.error('[GenerateReplyDraft] Error:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 }
@@ -50,7 +62,9 @@ export async function getAnalysisHistory(req, res) {
 export async function deleteAnalysisHistory(req, res) {
   try {
     const { id } = req.params;
-    await AIAnalysis.findByIdAndDelete(id);
+    if (mongoose.Types.ObjectId.isValid(id)) {
+      await AIAnalysis.findByIdAndDelete(id);
+    }
     res.json({ success: true, message: 'Analysis history deleted' });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });

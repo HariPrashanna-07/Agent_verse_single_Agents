@@ -1,14 +1,16 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import api from '../services/api';
-import { MessageSquareReply, Sparkles, Copy, Check, Sliders, Send } from 'lucide-react';
+import { MessageSquareReply, Sparkles, Copy, Check, Sliders, Send, Mail } from 'lucide-react';
 
 export default function ReplyGenerator() {
   const [selectedTone, setSelectedTone] = useState('professional');
   const [instructions, setInstructions] = useState('');
-  const [emailId, setEmailId] = useState('email_101');
+  const [emailId, setEmailId] = useState('');
+  const [emails, setEmails] = useState([]);
   const [draft, setDraft] = useState('');
   const [generating, setGenerating] = useState(false);
   const [copied, setCopied] = useState(false);
+  const [loadingEmails, setLoadingEmails] = useState(true);
 
   const tones = [
     { id: 'professional', label: 'Professional', desc: 'Clear, polite executive tone' },
@@ -18,11 +20,29 @@ export default function ReplyGenerator() {
     { id: 'detailed', label: 'Detailed', desc: 'Itemized, comprehensive draft' },
   ];
 
+  useEffect(() => {
+    const fetchEmails = async () => {
+      try {
+        setLoadingEmails(true);
+        const res = await api.get('/emails');
+        if (res.data.success && res.data.emails?.length > 0) {
+          setEmails(res.data.emails);
+          setEmailId(res.data.emails[0]._id);
+        }
+      } catch (err) {
+        console.error('Failed to load emails for reply generator:', err);
+      } finally {
+        setLoadingEmails(false);
+      }
+    };
+    fetchEmails();
+  }, []);
+
   const handleGenerate = async () => {
     try {
       setGenerating(true);
       const res = await api.post('/ai/generate-reply', {
-        emailId,
+        emailId: emailId || undefined,
         tone: selectedTone,
         customInstructions: instructions,
       });
@@ -30,7 +50,7 @@ export default function ReplyGenerator() {
         setDraft(res.data.replyDraft);
       }
     } catch (err) {
-      alert('Error generating reply: ' + err.message);
+      alert('Error generating reply: ' + (err.response?.data?.message || err.message));
     } finally {
       setGenerating(false);
     }
@@ -55,6 +75,31 @@ export default function ReplyGenerator() {
       <div className="grid grid-cols-1 md:grid-cols-12 gap-6">
         {/* Settings (5 Cols) */}
         <div className="md:col-span-5 glass-card p-6 rounded-3xl space-y-6">
+          {/* Email Selector */}
+          <div className="space-y-2">
+            <label className="text-xs font-bold text-slate-400 uppercase tracking-wider flex items-center space-x-1">
+              <Mail className="w-3.5 h-3.5 text-indigo-400 mr-1" />
+              Select Target Email
+            </label>
+            {loadingEmails ? (
+              <div className="p-3 text-xs text-slate-500 animate-pulse bg-slate-800/40 rounded-xl">Loading inbox messages...</div>
+            ) : emails.length > 0 ? (
+              <select
+                value={emailId}
+                onChange={(e) => setEmailId(e.target.value)}
+                className="w-full p-3 text-xs rounded-xl bg-slate-800/80 border border-slate-700 focus:border-indigo-500 focus:outline-none text-slate-200"
+              >
+                {emails.map((e) => (
+                  <option key={e._id} value={e._id}>
+                    {e.subject ? (e.subject.length > 35 ? e.subject.substring(0, 35) + '...' : e.subject) : 'No Subject'} ({e.sender?.name || e.sender?.email})
+                  </option>
+                ))}
+              </select>
+            ) : (
+              <div className="p-3 text-xs text-slate-400 bg-slate-800/40 rounded-xl">General response template</div>
+            )}
+          </div>
+
           <div className="space-y-3">
             <label className="text-xs font-bold text-slate-400 uppercase tracking-wider">Select Response Tone</label>
             <div className="space-y-2">

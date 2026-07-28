@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import { config } from '../config/env.js';
 import { Email } from '../models/Email.js';
 import { AIAnalysis } from '../models/AIAnalysis.js';
@@ -32,55 +33,11 @@ export async function getEmails(req, res) {
       );
     }
 
-    // Populate analysis badges
-    const analyses = await AIAnalysis.find({ userId: req.user._id });
-    const analysisMap = {};
-
-    analyses.forEach((a) => {
-      analysisMap[a.emailId.toString()] = a;
-    });
-
-    // Merge mock analyses if DB empty
-    Object.values(MOCK_ANALYSES).forEach((a) => {
-      if (!analysisMap[a.emailId]) {
-        analysisMap[a.emailId] = a;
-      }
-    });
-
-    let result = emails.map((e) => {
-      const emailObj = e.toObject ? e.toObject() : { ...e };
-      const analysis = analysisMap[emailObj._id.toString()];
-      return {
-        ...emailObj,
-        analysis: analysis
-          ? {
-              category: analysis.category,
-              urgency: analysis.urgency,
-              sentiment: analysis.sentiment,
-              summaryShort: analysis.summary?.short,
-              tasksCount: analysis.tasks?.length || 0,
-            }
-          : null,
-      };
-    });
-
-    if (category && category !== 'All') {
-      result = result.filter((e) => e.analysis?.category === category);
-    }
-    if (urgency && urgency !== 'All') {
-      result = result.filter((e) => e.analysis?.urgency === urgency);
-    }
-
-    const startIndex = (page - 1) * limit;
-    const paginated = result.slice(startIndex, startIndex + Number(limit));
-
     res.json({
       success: true,
-      emails: paginated,
-      total: result.length,
+      count: emails.length,
       page: Number(page),
-      totalPages: Math.ceil(result.length / limit),
-      syncState: SyncService.getSyncState(),
+      emails,
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -90,13 +47,23 @@ export async function getEmails(req, res) {
 export async function getEmailById(req, res) {
   try {
     const { id } = req.params;
-    let email = await Email.findById(id);
 
+    let email = null;
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      email = await Email.findById(id);
+    }
     if (!email) {
-      email = MOCK_EMAILS.find((e) => e._id === id || e.gmailMessageId === id) || MOCK_EMAILS[0];
+      email = MOCK_EMAILS.find((e) => e._id === id || e.gmailMessageId === id);
     }
 
-    let analyses = await AIAnalysis.find({ emailId: email._id }).sort({ createdAt: -1 });
+    if (!email) {
+      return res.status(404).json({ success: false, message: 'Email not found' });
+    }
+
+    let analyses = [];
+    if (mongoose.Types.ObjectId.isValid(email._id)) {
+      analyses = await AIAnalysis.find({ emailId: email._id, userId: req.user._id }).sort({ createdAt: -1 });
+    }
 
     if (analyses.length === 0 && MOCK_ANALYSES[email._id]) {
       analyses = [MOCK_ANALYSES[email._id]];
@@ -125,24 +92,39 @@ export async function syncInbox(req, res) {
 export async function analyzeEmail(req, res) {
   try {
     const { id } = req.params;
-    let email = await Email.findById(id);
-
-    if (!email) {
-      email = MOCK_EMAILS.find((e) => e._id === id) || MOCK_EMAILS[0];
+    let email = null;
+    if (id && mongoose.Types.ObjectId.isValid(id)) {
+      email = await Email.findById(id);
     }
 
-    await Email.findByIdAndUpdate(email._id, { aiStatus: 'ANALYZING' });
+    if (!email) {
+      email = MOCK_EMAILS.find((e) => e._id === id || e.gmailMessageId === id) || {
+        _id: id,
+        subject: 'Email Message',
+        sender: { name: 'Sender', email: 'sender@example.com' },
+        snippet: '',
+        body: '',
+      };
+    }
+
+    if (mongoose.Types.ObjectId.isValid(email._id)) {
+      await Email.findByIdAndUpdate(email._id, { aiStatus: 'ANALYZING' });
+    }
 
     const analysisResult = await analyzeEmailWithGemini(email);
 
     let savedAnalysis;
     try {
-      savedAnalysis = await AIAnalysis.create({
-        ...analysisResult,
-        emailId: email._id,
-        userId: req.user._id,
-      });
-      await Email.findByIdAndUpdate(email._id, { aiStatus: 'ANALYZED' });
+      if (mongoose.Types.ObjectId.isValid(email._id) && mongoose.Types.ObjectId.isValid(req.user._id)) {
+        savedAnalysis = await AIAnalysis.create({
+          ...analysisResult,
+          emailId: email._id,
+          userId: req.user._id,
+        });
+        await Email.findByIdAndUpdate(email._id, { aiStatus: 'ANALYZED' });
+      } else {
+        savedAnalysis = { ...analysisResult, _id: `analysis_sim_${Date.now()}` };
+      }
     } catch (dbErr) {
       savedAnalysis = { ...analysisResult, _id: `analysis_sim_${Date.now()}` };
     }
