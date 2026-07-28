@@ -166,24 +166,60 @@ export async function searchEmailsNaturalLanguage(req, res) {
 
     const intent = await parseSearchIntentWithGemini(query);
 
-    let emails = MOCK_EMAILS;
-    if (intent.category && intent.category !== 'All') {
-      emails = emails.filter((e) => MOCK_ANALYSES[e._id]?.category === intent.category);
+    let userEmails = await Email.find({ userId: req.user._id }).sort({ date: -1 });
+
+    if (userEmails.length === 0 && config.isDemoMode) {
+      userEmails = MOCK_EMAILS;
     }
-    if (intent.urgency && intent.urgency !== 'All') {
-      emails = emails.filter((e) => MOCK_ANALYSES[e._id]?.urgency === intent.urgency);
+
+    const analyses = await AIAnalysis.find({ userId: req.user._id });
+    const analysisMap = new Map();
+    analyses.forEach((a) => {
+      if (a.emailId) analysisMap.set(a.emailId.toString(), a);
+    });
+
+    let results = userEmails.filter((email) => {
+      const emailAnalysis = analysisMap.get(email._id.toString()) || MOCK_ANALYSES[email._id];
+
+      if (intent.category && intent.category !== 'All') {
+        const catMatch = emailAnalysis?.category === intent.category;
+        if (!catMatch) return false;
+      }
+
+      if (intent.urgency && intent.urgency !== 'All') {
+        const urgMatch = emailAnalysis?.urgency === intent.urgency;
+        if (!urgMatch) return false;
+      }
+
+      const textToSearch = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''} ${email.body || ''}`.toLowerCase();
+      const qTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
+
+      if (qTerms.length > 0) {
+        return qTerms.some((term) => textToSearch.includes(term));
+      }
+
+      return true;
+    });
+
+    if (results.length === 0 && userEmails.length > 0) {
+      const qLower = query.toLowerCase();
+      results = userEmails.filter((email) => {
+        const fullText = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''} ${email.body || ''}`.toLowerCase();
+        return fullText.includes(qLower) || qLower.split(' ').some((word) => word.length > 3 && fullText.includes(word));
+      });
     }
 
     res.json({
       success: true,
       query,
       intent,
-      results: emails.map((e) => ({
-        ...e,
-        analysis: MOCK_ANALYSES[e._id] || null,
+      results: results.map((e) => ({
+        ...(e.toObject ? e.toObject() : e),
+        analysis: analysisMap.get(e._id.toString()) || MOCK_ANALYSES[e._id] || null,
       })),
     });
   } catch (error) {
+    console.error('[SearchNL] Error performing search:', error.message);
     res.status(500).json({ success: false, message: error.message });
   }
 }
