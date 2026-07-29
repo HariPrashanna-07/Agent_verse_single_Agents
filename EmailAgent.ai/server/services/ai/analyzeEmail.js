@@ -1,7 +1,7 @@
-import { GoogleGenerativeAI } from '@google/generative-ai';
 import { config } from '../../config/env.js';
 import { PromptBuilder } from './promptBuilder.js';
 import { ResponseParser } from './responseParser.js';
+import { AIProvider } from './aiProvider.js';
 
 function generateDynamicFallback(email) {
   const subject = email.subject || 'No Subject';
@@ -60,11 +60,11 @@ function generateDynamicFallback(email) {
   };
 }
 
-export async function analyzeEmailWithGemini(email) {
+export async function analyzeEmail(email) {
   const startTime = Date.now();
 
-  if (!config.gemini.apiKey) {
-    console.warn('[AnalyzeEmail] GEMINI_API_KEY is not set in server/.env. Using dynamic fallback.');
+  if (!config.ai.apiKey) {
+    console.warn('[AnalyzeEmail] GROQ_API_KEY is not set in server/.env. Using dynamic fallback based on email content.');
     return {
       ...generateDynamicFallback(email),
       emailId: email._id,
@@ -72,46 +72,34 @@ export async function analyzeEmailWithGemini(email) {
     };
   }
 
-  const genAI = new GoogleGenerativeAI(config.gemini.apiKey);
-  const prompt = PromptBuilder.buildAnalysisPrompt(email);
-  const modelCandidates = [
-    config.gemini.model,
-    'gemini-2.0-flash',
-    'gemini-2.0-flash-lite',
-    'gemini-2.0-flash-lite-preview-02-05',
-    'gemini-1.5-flash',
-  ].filter((m, i, self) => m && self.indexOf(m) === i);
+  try {
+    const prompt = PromptBuilder.buildAnalysisPrompt(email);
+    const rawText = await AIProvider.createCompletion({
+      prompt,
+      temperature: 0.2,
+      responseFormat: 'json_object',
+    });
 
-  for (const modelName of modelCandidates) {
-    try {
-      const model = genAI.getGenerativeModel({ model: modelName });
-      const response = await model.generateContent(prompt);
-      const rawText = response.response.text();
-      const parsed = ResponseParser.parseAndCleanJSON(rawText);
-      const validated = ResponseParser.validateAnalysisSchema(parsed);
+    const parsed = ResponseParser.parseAndCleanJSON(rawText);
+    const validated = ResponseParser.validateAnalysisSchema(parsed);
 
-      const processingTime = Date.now() - startTime;
-      const tokensUsed = 450;
-      const estimatedCost = (tokensUsed / 1000) * 0.0003;
+    const processingTime = Date.now() - startTime;
+    const tokensUsed = 450;
+    const estimatedCost = (tokensUsed / 1000) * 0.0003;
 
-      return {
-        ...validated,
-        emailId: email._id,
-        tokensUsed,
-        processingTime,
-        estimatedCost: parseFloat(estimatedCost.toFixed(6)),
-      };
-    } catch (error) {
-      if (error.message.includes('429') || error.message.includes('Quota exceeded') || error.message.includes('rate-limits')) {
-        console.warn(`[AnalyzeEmail] Gemini API Quota Exceeded (429) on "${modelName}". Serving dynamic email analysis.`);
-        break;
-      }
-    }
+    return {
+      ...validated,
+      emailId: email._id,
+      tokensUsed,
+      processingTime,
+      estimatedCost: parseFloat(estimatedCost.toFixed(6)),
+    };
+  } catch (error) {
+    console.warn(`[AnalyzeEmail] AI Provider error (${error.message}). Serving dynamic email analysis.`);
+    return {
+      ...generateDynamicFallback(email),
+      emailId: email._id,
+      processingTime: Date.now() - startTime,
+    };
   }
-
-  return {
-    ...generateDynamicFallback(email),
-    emailId: email._id,
-    processingTime: Date.now() - startTime,
-  };
 }

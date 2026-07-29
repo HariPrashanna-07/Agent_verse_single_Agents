@@ -1,6 +1,6 @@
 export class ResponseParser {
   static parseAndCleanJSON(rawText) {
-    if (!rawText) throw new Error('Empty response from Gemini');
+    if (!rawText) throw new Error('Empty response from AI Service');
 
     let cleaned = rawText.trim();
 
@@ -14,7 +14,6 @@ export class ResponseParser {
     try {
       return JSON.parse(cleaned);
     } catch (firstErr) {
-      // Attempt JSON repair for common Gemini output glitches (trailing commas, unescaped quotes)
       try {
         const repaired = cleaned
           .replace(/,\s*}/g, '}')
@@ -23,7 +22,7 @@ export class ResponseParser {
         return JSON.parse(repaired);
       } catch (secondErr) {
         console.error('[ResponseParser] Failed to parse JSON:', cleaned);
-        throw new Error('Gemini output could not be parsed as valid JSON');
+        throw new Error('AI output could not be parsed as valid JSON');
       }
     }
   }

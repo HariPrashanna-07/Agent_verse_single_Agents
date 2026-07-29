@@ -1,6 +1,5 @@
-export class PromptBuilder {
-  static buildAnalysisPrompt(email) {
-    return `You are a world-class AI Email Intelligence Agent. Analyze the following email text and respond strictly in raw JSON without any markdown formatting or surrounding backticks.
+export function buildAnalyzePrompt(email) {
+  return `You are a world-class AI Email Intelligence Agent. Analyze the following email text and respond strictly in raw JSON without any markdown formatting or surrounding backticks.
 
 EMAIL DATA:
 Subject: ${email.subject}
@@ -43,32 +42,4 @@ EXACT OUTPUT JSON FORMAT REQUIRED:
   },
   "confidence": 0.95
 }`;
-  }
-
-  static buildReplyPrompt(email, tone = 'professional', customInstructions = '') {
-    return `Generate an email response in tone "${tone}". Custom instructions: "${customInstructions}".
-Original Email Subject: ${email.subject}
-Original Email Sender: ${email.sender?.name} <${email.sender?.email}>
-Original Email Body: ${email.body || email.bodyPreview || email.snippet}
-
-Respond ONLY with valid JSON:
-{
-  "replyDraft": "Generated response string"
-}`;
-  }
-
-  static buildSearchIntentPrompt(userQuery) {
-    return `Analyze the following natural language email search query and extract structured filter intent.
-User Query: "${userQuery}"
-
-Respond ONLY with valid JSON:
-{
-  "category": "Work" | "Finance" | "Education" | "Personal" | "Promotions" | "All",
-  "urgency": "Urgent" | "Medium" | "Low" | "All",
-  "isRead": boolean | null,
-  "hasAttachments": boolean | null,
-  "keywords": ["extracted", "search", "terms"],
-  "suggestedGmailQuery": "Gmail search bar format like 'label:WORK invoice'"
-}`;
-  }
 }

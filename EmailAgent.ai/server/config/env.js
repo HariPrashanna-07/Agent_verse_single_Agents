@@ -12,9 +12,10 @@ export const config = {
     clientSecret: process.env.GOOGLE_CLIENT_SECRET || '',
     redirectUri: process.env.GOOGLE_REDIRECT_URI || 'http://localhost:5000/api/auth/google/callback',
   },
-  gemini: {
-    apiKey: process.env.GEMINI_API_KEY || '',
-    model: process.env.GEMINI_MODEL || 'gemini-2.0-flash',
+  ai: {
+    provider: process.env.AI_PROVIDER || 'groq',
+    apiKey: process.env.GROQ_API_KEY || '',
+    model: process.env.GROQ_MODEL || 'openai/gpt-oss-20b',
   },
   clientUrl: process.env.CLIENT_URL || 'http://localhost:5173',
   isDemoMode: process.env.DEMO_MODE === 'true',

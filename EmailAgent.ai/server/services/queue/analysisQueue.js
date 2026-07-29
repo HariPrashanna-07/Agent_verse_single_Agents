@@ -1,6 +1,6 @@
 import { Email } from '../../models/Email.js';
 import { AIAnalysis } from '../../models/AIAnalysis.js';
-import { analyzeEmailWithGemini } from '../gemini/analyzeEmail.js';
+import { analyzeEmail } from '../ai/analyzeEmail.js';
 
 class QueueManager {
   constructor() {
@@ -56,7 +56,7 @@ class QueueManager {
         this.progress.currentSubject = email.subject || 'Processing email';
         await Email.findByIdAndUpdate(item.emailId, { aiStatus: 'ANALYZING' });
 
-        const result = await analyzeEmailWithGemini(email);
+        const result = await analyzeEmail(email);
 
         await AIAnalysis.create({
           ...result,

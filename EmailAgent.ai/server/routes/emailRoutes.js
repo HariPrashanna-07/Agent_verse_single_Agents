@@ -3,7 +3,7 @@ import {
   getEmails,
   getEmailById,
   syncInbox,
-  analyzeEmail,
+  analyzeEmailController as analyzeEmail,
   batchAnalyzeEmails,
   getQueueProgress,
   searchEmailsNaturalLanguage,

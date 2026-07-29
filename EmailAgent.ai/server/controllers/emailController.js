@@ -4,8 +4,8 @@ import { Email } from '../models/Email.js';
 import { AIAnalysis } from '../models/AIAnalysis.js';
 import { MOCK_EMAILS, MOCK_ANALYSES } from '../utils/demoData.js';
 import { SyncService } from '../services/sync/syncService.js';
-import { analyzeEmailWithGemini } from '../services/gemini/analyzeEmail.js';
-import { parseSearchIntentWithGemini } from '../services/gemini/searchIntent.js';
+import { analyzeEmail } from '../services/ai/analyzeEmail.js';
+import { parseSearchIntent } from '../services/ai/searchIntent.js';
 import { analysisQueue } from '../services/queue/analysisQueue.js';
 
 export async function getEmails(req, res) {
@@ -124,7 +124,7 @@ export async function syncInbox(req, res) {
   }
 }
 
-export async function analyzeEmail(req, res) {
+export async function analyzeEmailController(req, res) {
   try {
     const { id } = req.params;
     let email = null;
@@ -146,7 +146,7 @@ export async function analyzeEmail(req, res) {
       await Email.findByIdAndUpdate(email._id, { aiStatus: 'ANALYZING' });
     }
 
-    const analysisResult = await analyzeEmailWithGemini(email);
+    const analysisResult = await analyzeEmail(email);
 
     let savedAnalysis;
     try {
@@ -167,7 +167,7 @@ export async function analyzeEmail(req, res) {
     res.json({
       success: true,
       analysis: savedAnalysis,
-      message: 'Email successfully analyzed by Gemini AI',
+      message: 'Email successfully analyzed by AI Service',
     });
   } catch (error) {
     res.status(500).json({ success: false, message: error.message });
@@ -199,7 +199,7 @@ export async function searchEmailsNaturalLanguage(req, res) {
       return res.status(400).json({ success: false, message: 'Query string is required' });
     }
 
-    const intent = await parseSearchIntentWithGemini(query);
+    const intent = await parseSearchIntent(query);
 
     let userEmails = await Email.find({ userId: req.user._id }).sort({ date: -1 });
 

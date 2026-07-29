@@ -1,5 +1,5 @@
 import mongoose from 'mongoose';
-import { generateCustomReplyWithGemini } from '../services/gemini/generateReply.js';
+import { generateReply } from '../services/ai/generateReply.js';
 import { Email } from '../models/Email.js';
 import { AIAnalysis } from '../models/AIAnalysis.js';
 import { MOCK_EMAILS, MOCK_ANALYSES } from '../utils/demoData.js';
@@ -23,7 +23,7 @@ export async function generateReplyDraft(req, res) {
       };
     }
 
-    const reply = await generateCustomReplyWithGemini(email, tone, customInstructions);
+    const reply = await generateReply(email, tone, customInstructions);
 
     res.json({
       success: true,
