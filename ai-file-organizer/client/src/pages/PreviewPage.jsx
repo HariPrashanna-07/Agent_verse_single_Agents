@@ -226,7 +226,6 @@ const PreviewPage = () => {
                   {file.isDuplicate && (
                     <Badge variant="duplicate" text={file.duplicateStatus || 'Duplicate'} title={file.duplicateReason} />
                   )}
-                  <Badge variant="confidence" confidence={file.confidence || 85} />
 
                   <Button
                     onClick={() => setEditFile({ ...file })}

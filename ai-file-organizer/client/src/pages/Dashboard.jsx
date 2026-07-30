@@ -12,7 +12,6 @@ import {
   CheckCheck, 
   Copy, 
   HardDrive, 
-  Zap, 
   FolderPlus, 
   Sparkles, 
   ArrowRight,
@@ -37,7 +36,7 @@ const Dashboard = () => {
       setDashboardData(data);
     } catch (err) {
       console.error('Failed to load dashboard stats:', err);
-    } finally {
+    } fontally {
       setLoading(false);
     }
   };
@@ -48,7 +47,6 @@ const Dashboard = () => {
     duplicateFiles: 0,
     totalSize: 0,
     largestCategory: 'N/A',
-    averageConfidence: 0,
     categoryBreakdown: {}
   };
 
@@ -129,13 +127,6 @@ const Dashboard = () => {
             description="Document payload processed"
             icon={HardDrive}
             color="indigo"
-          />
-          <StatCard
-            title="Average AI Confidence"
-            value={`${stats.averageConfidence}%`}
-            description="Gemini classification score"
-            icon={Zap}
-            color="emerald"
           />
           <StatCard
             title="Top Dynamic Category"
