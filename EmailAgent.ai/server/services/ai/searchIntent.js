@@ -3,8 +3,16 @@ import { PromptBuilder } from './promptBuilder.js';
 import { ResponseParser } from './responseParser.js';
 import { AIProvider } from './aiProvider.js';
 
+const KEYWORD_MAP = {
+  anime: ['anime', 'crunchyroll', 'funimation', 'animation', 'manga', 'stream', 'otaku'],
+  work: ['work', 'job', 'project', 'meeting', 'office', 'task', 'career', 'team', 'slack', 'jira'],
+  finance: ['finance', 'invoice', 'bill', 'payment', 'bank', 'receipt', 'tax', 'salary', 'paypal', 'stripe'],
+  shopping: ['shopping', 'order', 'shipping', 'amazon', 'delivery', 'package', 'tracking', 'store'],
+  social: ['social', 'linkedin', 'twitter', 'facebook', 'instagram', 'github', 'invitation', 'connection'],
+};
+
 export async function parseSearchIntent(userQuery) {
-  const queryLower = userQuery.toLowerCase();
+  const queryLower = userQuery.toLowerCase().trim();
   let category = 'All';
   let urgency = 'All';
 
@@ -12,12 +20,21 @@ export async function parseSearchIntent(userQuery) {
   if (queryLower.includes('invoice') || queryLower.includes('bill') || queryLower.includes('payment') || queryLower.includes('financial')) category = 'Finance';
   if (queryLower.includes('urgent') || queryLower.includes('asap') || queryLower.includes('important')) urgency = 'Urgent';
 
+  const baseKeywords = queryLower.split(/\s+/).filter((w) => w.length > 2);
+  const expandedKeywords = new Set(baseKeywords);
+
+  Object.keys(KEYWORD_MAP).forEach((key) => {
+    if (queryLower.includes(key)) {
+      KEYWORD_MAP[key].forEach((k) => expandedKeywords.add(k));
+    }
+  });
+
   const defaultIntent = {
     category,
     urgency,
     isRead: queryLower.includes('unread') ? false : null,
     hasAttachments: queryLower.includes('receipt') || queryLower.includes('attachment') || queryLower.includes('invoice') ? true : null,
-    keywords: userQuery.split(' ').filter((w) => w.length > 3),
+    keywords: Array.from(expandedKeywords),
     suggestedGmailQuery: `label:${category.toLowerCase()} ${userQuery}`,
   };
 
@@ -33,7 +50,14 @@ export async function parseSearchIntent(userQuery) {
       responseFormat: 'json_object',
     });
 
-    return ResponseParser.parseAndCleanJSON(rawText);
+    const parsed = ResponseParser.parseAndCleanJSON(rawText);
+    const aiKeywords = Array.isArray(parsed.keywords) ? parsed.keywords : [];
+    aiKeywords.forEach((k) => expandedKeywords.add(k.toLowerCase()));
+
+    return {
+      ...parsed,
+      keywords: Array.from(expandedKeywords),
+    };
   } catch (error) {
     console.warn(`[SearchIntent] AI Provider error (${error.message}). Serving fallback search intent.`);
     return defaultIntent;

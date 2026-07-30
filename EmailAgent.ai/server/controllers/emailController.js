@@ -195,7 +195,7 @@ export async function getQueueProgress(req, res) {
 export async function searchEmailsNaturalLanguage(req, res) {
   try {
     const { query } = req.body;
-    if (!query) {
+    if (!query || !query.trim()) {
       return res.status(400).json({ success: false, message: 'Query string is required' });
     }
 
@@ -213,44 +213,81 @@ export async function searchEmailsNaturalLanguage(req, res) {
       if (a.emailId) analysisMap.set(a.emailId.toString(), a);
     });
 
-    let results = userEmails.filter((email) => {
-      const emailAnalysis = analysisMap.get(email._id.toString()) || MOCK_ANALYSES[email._id];
+    const keywords = intent.keywords?.length ? intent.keywords : query.toLowerCase().split(/\s+/).filter((w) => w.length > 2);
 
+    const scoredResults = userEmails.map((email) => {
+      const emailAnalysis = analysisMap.get(email._id.toString()) || MOCK_ANALYSES[email._id] || null;
+      let score = 0;
+
+      const subject = (email.subject || '').toLowerCase();
+      const senderName = (email.sender?.name || '').toLowerCase();
+      const senderEmail = (email.sender?.email || '').toLowerCase();
+      const snippet = (email.snippet || email.bodyPreview || '').toLowerCase();
+      const body = (email.body || '').toLowerCase();
+      const category = (emailAnalysis?.category || '').toLowerCase();
+      const urgency = (emailAnalysis?.urgency || '').toLowerCase();
+      const summaryShort = (emailAnalysis?.summary?.short || '').toLowerCase();
+      const aiKeywords = (emailAnalysis?.keywords || []).map((k) => k.toLowerCase()).join(' ');
+
+      // 1. Keyword Matching Across All Fields
+      keywords.forEach((term) => {
+        const t = term.toLowerCase();
+        if (subject.includes(t)) score += 15;
+        if (senderName.includes(t)) score += 12;
+        if (senderEmail.includes(t)) score += 12;
+        if (snippet.includes(t)) score += 8;
+        if (body.includes(t)) score += 5;
+        if (summaryShort.includes(t)) score += 6;
+        if (aiKeywords.includes(t)) score += 6;
+      });
+
+      // 2. Intent Category Soft Boost
       if (intent.category && intent.category !== 'All') {
-        const catMatch = emailAnalysis?.category === intent.category;
-        if (!catMatch) return false;
+        if (category === intent.category.toLowerCase()) {
+          score += 10;
+        }
       }
 
+      // 3. Intent Urgency Soft Boost
       if (intent.urgency && intent.urgency !== 'All') {
-        const urgMatch = emailAnalysis?.urgency === intent.urgency;
-        if (!urgMatch) return false;
+        if (urgency === intent.urgency.toLowerCase()) {
+          score += 8;
+        }
       }
 
-      const textToSearch = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''} ${email.body || ''}`.toLowerCase();
-      const qTerms = query.toLowerCase().split(/\s+/).filter((t) => t.length > 2);
-
-      if (qTerms.length > 0) {
-        return qTerms.some((term) => textToSearch.includes(term));
+      // 4. Attachments Match
+      if (intent.hasAttachments && email.hasAttachments) {
+        score += 5;
       }
 
-      return true;
+      return {
+        email,
+        analysis: emailAnalysis,
+        score,
+      };
     });
 
-    if (results.length === 0 && userEmails.length > 0) {
+    let finalResults = scoredResults.filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
+
+    if (finalResults.length === 0) {
       const qLower = query.toLowerCase();
-      results = userEmails.filter((email) => {
-        const fullText = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''} ${email.body || ''}`.toLowerCase();
-        return fullText.includes(qLower) || qLower.split(' ').some((word) => word.length > 3 && fullText.includes(word));
-      });
+      finalResults = userEmails
+        .map((email) => {
+          const text = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''}`.toLowerCase();
+          const match = text.includes(qLower) || keywords.some((k) => text.includes(k));
+          return { email, analysis: analysisMap.get(email._id.toString()) || null, score: match ? 1 : 0 };
+        })
+        .filter((item) => item.score > 0);
     }
 
     res.json({
       success: true,
       query,
       intent,
-      results: results.map((e) => ({
-        ...(e.toObject ? e.toObject() : e),
-        analysis: analysisMap.get(e._id.toString()) || MOCK_ANALYSES[e._id] || null,
+      results: finalResults.map((item) => ({
+        ...(item.email.toObject ? item.email.toObject() : item.email),
+        analysis: item.analysis,
+        relevanceScore: item.score,
       })),
     });
   } catch (error) {
