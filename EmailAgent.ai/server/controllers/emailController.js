@@ -8,6 +8,22 @@ import { analyzeEmail } from '../services/ai/analyzeEmail.js';
 import { parseSearchIntent } from '../services/ai/searchIntent.js';
 import { analysisQueue } from '../services/queue/analysisQueue.js';
 
+function matchTerm(text, term) {
+  if (!text || !term) return false;
+  const lowerText = text.toLowerCase();
+  const lowerTerm = term.toLowerCase();
+
+  if (lowerTerm.length <= 4) {
+    try {
+      const regex = new RegExp(`\\b${lowerTerm.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\b`, 'i');
+      return regex.test(lowerText);
+    } catch (e) {
+      return lowerText.includes(lowerTerm);
+    }
+  }
+  return lowerText.includes(lowerTerm);
+}
+
 export async function getEmails(req, res) {
   try {
     const { category, urgency, status, search, page = 1, limit = 20 } = req.query;
@@ -219,26 +235,25 @@ export async function searchEmailsNaturalLanguage(req, res) {
       const emailAnalysis = analysisMap.get(email._id.toString()) || MOCK_ANALYSES[email._id] || null;
       let score = 0;
 
-      const subject = (email.subject || '').toLowerCase();
-      const senderName = (email.sender?.name || '').toLowerCase();
-      const senderEmail = (email.sender?.email || '').toLowerCase();
-      const snippet = (email.snippet || email.bodyPreview || '').toLowerCase();
-      const body = (email.body || '').toLowerCase();
+      const subject = email.subject || '';
+      const senderName = email.sender?.name || '';
+      const senderEmail = email.sender?.email || '';
+      const snippet = email.snippet || email.bodyPreview || '';
+      const body = email.body || '';
       const category = (emailAnalysis?.category || '').toLowerCase();
       const urgency = (emailAnalysis?.urgency || '').toLowerCase();
-      const summaryShort = (emailAnalysis?.summary?.short || '').toLowerCase();
-      const aiKeywords = (emailAnalysis?.keywords || []).map((k) => k.toLowerCase()).join(' ');
+      const summaryShort = emailAnalysis?.summary?.short || '';
+      const aiKeywords = (emailAnalysis?.keywords || []).join(' ');
 
-      // 1. Keyword Matching Across All Fields
+      // 1. Precise Keyword Matching Across All Fields
       keywords.forEach((term) => {
-        const t = term.toLowerCase();
-        if (subject.includes(t)) score += 15;
-        if (senderName.includes(t)) score += 12;
-        if (senderEmail.includes(t)) score += 12;
-        if (snippet.includes(t)) score += 8;
-        if (body.includes(t)) score += 5;
-        if (summaryShort.includes(t)) score += 6;
-        if (aiKeywords.includes(t)) score += 6;
+        if (matchTerm(subject, term)) score += 15;
+        if (matchTerm(senderName, term)) score += 12;
+        if (matchTerm(senderEmail, term)) score += 12;
+        if (matchTerm(snippet, term)) score += 8;
+        if (matchTerm(body, term)) score += 5;
+        if (matchTerm(summaryShort, term)) score += 6;
+        if (matchTerm(aiKeywords, term)) score += 6;
       });
 
       // 2. Intent Category Soft Boost
@@ -270,11 +285,10 @@ export async function searchEmailsNaturalLanguage(req, res) {
     let finalResults = scoredResults.filter((item) => item.score > 0).sort((a, b) => b.score - a.score);
 
     if (finalResults.length === 0) {
-      const qLower = query.toLowerCase();
       finalResults = userEmails
         .map((email) => {
-          const text = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''}`.toLowerCase();
-          const match = text.includes(qLower) || keywords.some((k) => text.includes(k));
+          const text = `${email.subject} ${email.sender?.name || ''} ${email.sender?.email || ''} ${email.snippet || ''}`;
+          const match = keywords.some((k) => matchTerm(text, k));
           return { email, analysis: analysisMap.get(email._id.toString()) || null, score: match ? 1 : 0 };
         })
         .filter((item) => item.score > 0);
