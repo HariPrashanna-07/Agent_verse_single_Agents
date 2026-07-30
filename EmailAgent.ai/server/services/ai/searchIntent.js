@@ -5,6 +5,9 @@ import { AIProvider } from './aiProvider.js';
 
 const KEYWORD_MAP = {
   anime: ['anime', 'crunchyroll', 'funimation', 'animation', 'manga', 'stream', 'otaku'],
+  games: ['games', 'gaming', 'steam', 'playstation', 'xbox', 'nintendo', 'epic games', 'twitch', 'discord', 'gamepass', 'riot', 'ubisoft', 'blizzard', 'roblox'],
+  game: ['game', 'gaming', 'steam', 'playstation', 'xbox', 'nintendo', 'epic games', 'twitch', 'discord', 'gamepass', 'riot', 'ubisoft', 'blizzard', 'roblox'],
+  entertainment: ['entertainment', 'movie', 'show', 'netflix', 'spotify', 'youtube', 'prime video', 'hulu', 'disney', 'hbo', 'cinema', 'music', 'concert', 'ticket'],
   work: ['work', 'job', 'project', 'meeting', 'office', 'task', 'career', 'team', 'slack', 'jira'],
   finance: ['finance', 'invoice', 'bill', 'payment', 'bank', 'receipt', 'tax', 'salary', 'paypal', 'stripe'],
   shopping: ['shopping', 'order', 'shipping', 'amazon', 'delivery', 'package', 'tracking', 'store'],
